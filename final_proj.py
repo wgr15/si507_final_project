@@ -24,6 +24,55 @@ headers = {
     'Course-Info': 'https://si.umich.edu/programs/courses/507'
 }
 
+create_heroes = '''
+    CREATE TABLE IF NOT EXISTS "heroes" (
+        "Id"          INTEGER PRIMARY KEY AUTOINCREMENT UNIQUE,
+        "Name"        TEXT NOT NULL,
+        "Role"        TEXT NOT NULL,
+        "Description" TEXT NOT NULL,
+        "Quote"       TEXT NOT NULL,
+        "Real_Name"   TEXT NOT NULL,
+        "Age"         TEXT NOT NULL,
+        "Nationality" TEXT NOT NULL,
+        "Occupation"  TEXT NOT NULL,
+        "Base"        TEXT NOT NULL,
+        "Affiliation" TEXT NOT NULL,
+        "Health"      TEXT NOT NULL,
+        "Armor"       TEXT NOT NULL,
+        "Shield"      TEXT NOT NULL,
+        "Pose_URL"    TEXT NOT NULL
+    );
+'''
+
+drop_heroes = '''
+    DROP TABLE IF EXISTS "heroes";
+'''
+
+add_hero = '''
+    INSERT INTO heroes
+    VALUES (NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+'''
+
+create_abilities = '''
+    CREATE TABLE IF NOT EXISTS "abilities" (
+        "Id"          INTEGER PRIMARY KEY AUTOINCREMENT UNIQUE,
+        "Name"        TEXT NOT NULL,
+        "Description" TEXT NOT NULL,
+        "Stats"       TEXT NOT NULL,
+        "HeroId"      INTEGER NOT NULL,
+        "Video_URL"   TEXT NOT NULL
+    );
+'''
+
+drop_abilities = '''
+    DROP TABLE IF EXISTS "abilities";
+'''
+
+add_ability = '''
+    INSERT INTO abilities
+    VALUES (NULL, ?, ?, ?, ?, ?)
+'''
+
 def construct_unique_key(baseurl, params):
     ''' constructs a key that is guaranteed to uniquely and 
     repeatably identify an API request by its baseurl and params
@@ -441,32 +490,13 @@ def create_heroes_table(hero_dict):
     '''
     conn = sqlite3.connect("hero_wiki.sqlite")
     cur = conn.cursor()
-    create_heroes = '''
-        CREATE TABLE IF NOT EXISTS "heroes" (
-            "Id"          INTEGER PRIMARY KEY AUTOINCREMENT UNIQUE,
-            "Name"        TEXT NOT NULL,
-            "Role"        TEXT NOT NULL,
-            "Description" TEXT NOT NULL,
-            "Quote"       TEXT NOT NULL,
-            "Real_Name"   TEXT NOT NULL,
-            "Age"         TEXT NOT NULL,
-            "Nationality" TEXT NOT NULL,
-            "Occupation"  TEXT NOT NULL,
-            "Base"        TEXT NOT NULL,
-            "Affiliation" TEXT NOT NULL,
-            "Health"      TEXT NOT NULL,
-            "Armor"       TEXT NOT NULL,
-            "Shield"      TEXT NOT NULL,
-            "Pose_URL"    TEXT NOT NULL
-        );
-    '''
 
-    add_hero = '''
-        INSERT INTO heroes
-        VALUES (NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    '''
+    ## create table
+    cur.execute(drop_heroes)
     cur.execute(create_heroes)
     conn.commit()
+
+    ## add infos
     for hero_name in hero_dict.keys():
         name = hero_dict[hero_name].name
         role = hero_dict[hero_name].role
@@ -498,23 +528,13 @@ def create_abilities_table(hero_dict):
     '''
     conn = sqlite3.connect("hero_wiki.sqlite")
     cur = conn.cursor()
-    create_abilities = '''
-        CREATE TABLE IF NOT EXISTS "abilities" (
-            "Id"          INTEGER PRIMARY KEY AUTOINCREMENT UNIQUE,
-            "Name"        TEXT NOT NULL,
-            "Description" TEXT NOT NULL,
-            "Stats"       TEXT NOT NULL,
-            "HeroId"      INTEGER NOT NULL,
-            "Video_URL"   TEXT NOT NULL
-        );
-    '''
 
-    add_ability = '''
-        INSERT INTO abilities
-        VALUES (NULL, ?, ?, ?, ?, ?)
-    '''
+    ## create table
+    cur.execute(drop_abilities)
     cur.execute(create_abilities)
     conn.commit()
+
+    ## add infos
     hero_id = 1
     for hero_name in hero_dict.keys():
         for ability_name in hero_dict[hero_name].abilities.keys():
