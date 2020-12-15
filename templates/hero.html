@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf8"/>
+    {% if hero_inst == "" %}
+    <title>No this Hero</title>
+    {% else %}
+    <title>Hero {{hero_inst[1]}}</title>
+    {% endif %}
+</head>
+<body>
+    {% if hero_inst == "" %}
+    <h1>
+        Cannot find this hero!
+    </h1>
+    {% else %}
+    <p>
+        <h1>{{hero_inst[1]}}</h1>
+        <h2>Role: {{hero_inst[2]}}</h2>
+        <p>
+            <img src="{{hero_inst[18]}}" width=300 style="float:right; margin: 5px;"/>
+        </p>
+        <h3>Description:</h3> {{hero_inst[3]}}
+        <h3>Quote:</h3> {{hero_inst[4]}}
+    </p>
+
+    <p>  
+        <h3>Detail informations:</h3>
+        <ul>      
+            <li style="margin-left:2em">Real Name: {{hero_inst[5]}}</li>
+            <li style="margin-left:2em">Age: {{hero_inst[6]}}</li>
+            <li style="margin-left:2em">Nationality: {{hero_inst[7]}}</li>
+            <li style="margin-left:2em">Occupation: {{hero_inst[8]}}</li>
+            <li style="margin-left:2em">Base: {{hero_inst[9]}}</li>
+            <li style="margin-left:2em">Affiliation: {{hero_inst[10]}}</li>
+        </ul>
+    </p>
+    <p>
+        <h3>Character stats:</h3>
+        <table style="margin-left:2em; text-align: center;">
+            <tr>
+                <th width="100">Health</th>
+                <th width="100">Armor</th>
+                <th width="100">Shield</th>
+            </tr>
+            <tr>
+                <td width="100">{{hero_inst[11]}}</td>
+                <td width="100">{{hero_inst[12]}}</td>
+                <td width="100">{{hero_inst[13]}}</td>
+            </tr>
+        </table>
+    </p>
+    <p>
+        <h3>Competition stats:</h3>
+        <table style="margin-left:2em; text-align: center;">
+            <tr>
+                <th width="100">Pick Rate</th>
+                <th width="100">Win Rate</th>
+                <th width="100">Tie Rate</th>
+                <th width="100">On Fire Rate</th>
+            </tr>
+            <tr>
+                <td width="100">{{hero_inst[14]}}%</td>
+                <td width="100">{{hero_inst[15]}}%</td>
+                <td width="100">{{hero_inst[16]}}%</td>
+                <td width="100">{{hero_inst[17]}}%</td>
+            </tr>
+        </table>
+    </p>
+    <p>
+        <h3>Abilities:</h3>
+        <table style="margin-left:2em;">
+            <tr style="text-align: center;">
+                <th>Name</th>
+                <th>Description</th>
+                <!-- <th>Stats</th> -->
+                <th>Video</th>
+            </tr>
+            {% for ability in ability_list %}
+            <tr>
+                <td width="150" style="text-align: center;">{{ability[0]}}</td>
+                <td width="400">{{ability[1]}}</td>
+                <!-- <td width="400">
+                    <ul>
+                        {% for stats in ability[2] %}
+                        <li>
+                            {{stats}}
+                        </li>
+                        {% endfor %}
+                    </ul>                
+                </td> -->
+                <td>
+                    <video width="400" height="300" controls>
+                        <source src="{{ability[3]}}" type="video/mp4">
+                    </video>
+                </td>
+            </tr>
+            {% endfor %}
+        </table>
+    </p>
+    {% endif %}
+
+    <p><a href='/'>Back to menu</a></p>
+
+</body>
+</html>

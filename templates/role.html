@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf8"/>
+    <title>Role {{role}}</title>
+</head>
+<body>
+    <h1>
+        Hero Search for {{role}} Role
+    </h1>
+    <form action="/search_type/role/hero" method="POST">
+        <p>
+            Which hero do you want to know more about?<br>
+            {% for hero in role_list %}
+            <input type="radio" name="hero_name" value="{{hero[1]}}">{{hero[1]}}<br/>
+            {% endfor %}
+        </p>
+          
+        <input type="submit" value="Search"/>
+    </form>
+
+    <p><a href='/'>Back to menu</a></p>
+</body>
+</html>

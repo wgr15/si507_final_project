@@ -4,15 +4,22 @@
 #################################
 
 from bs4 import BeautifulSoup
+import plotly.graph_objects as go 
 import requests
 import json
 import time
 import re
 import webbrowser
 import sqlite3
+from pathlib import Path
+from flask import Flask, render_template, request
+
+app = Flask(__name__)
+wiki_file = Path("./hero_wiki.sqlite")
 
 OFFICAL_WEBSITE_URL = 'https://playoverwatch.com'
 GAMEPEDIA_WEBSITE_URL = 'https://overwatch.gamepedia.com'
+OVERBUFF_WEBSITE_URL = 'https://www.overbuff.com/heroes'
 OFFICAL_WEBSITE_INDEX_PATH = '/en-us/heroes/'
 GAMEPEDIA_WEBSITE_INDEX_PATH = '/Heroes'
 CACHE_FILE_NAME = 'cache.json'
@@ -40,6 +47,10 @@ create_heroes = '''
         "Health"      TEXT NOT NULL,
         "Armor"       TEXT NOT NULL,
         "Shield"      TEXT NOT NULL,
+        "Pick_Rate"   REAL NOT NULL,
+        "Win_Rate"    REAL NOT NULL,
+        "Tie_Rate"    REAL NOT NULL,
+        "OnFire_Rate" REAL NOT NULL,
         "Pose_URL"    TEXT NOT NULL
     );
 '''
@@ -50,7 +61,7 @@ drop_heroes = '''
 
 add_hero = '''
     INSERT INTO heroes
-    VALUES (NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    VALUES (NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 '''
 
 create_abilities = '''
@@ -227,8 +238,20 @@ class Hero:
 
     affiliation: string
         the affiliation of a overwatch hero (e.g. 'Egyptian security forces (formerly) Overwatch (formerly)')
+
+    pick_rate: float
+        the pick rate of a overwatch hero in the competition match
+ 
+    win_rate: float
+        the win rate of a overwatch hero in the competition match
+    
+    tie_rate: float
+        the tie rate of a overwatch hero in the competition match
+
+    on_fire_rate: float
+        the on fire rate of a overwatch hero in the competition match
     '''
-    def __init__(self, role="", name="", description="", abilities={}, quote="", hero_pose_url="", health="0", armor="0", shield="0", real_name="", age="", nationality="", occupation="", base="", affiliation=""):
+    def __init__(self, role="", name="", description="", abilities={}, quote="", hero_pose_url="", health="0", armor="0", shield="0", real_name="", age="", nationality="", occupation="", base="", affiliation="", pick_rate=0, win_rate=0, tie_rate=0, on_fire_rate=0):
         self.role = role
         self.name = name
         self.description = description
@@ -244,15 +267,44 @@ class Hero:
         self.occupation = occupation
         self.base = base
         self.affiliation = affiliation
+        self.pick_rate = pick_rate
+        self.win_rate = win_rate
+        self.tie_rate = tie_rate
+        self.on_fire_rate = on_fire_rate
+    
+    def set_val_by_list(self, list):
+        self.role = list[2]
+        self.name = list[1]
+        self.description = list[3]
+        self.abilities = []
+        self.quote = list[4]
+        self.hero_pose_url = list[18]
+        self.health = list[11]
+        self.armor = list[12]
+        self.shield = list[13]
+        self.real_name = list[5]
+        self.age = list[6]
+        self.nationality = list[7]
+        self.occupation = list[8]
+        self.base = list[9]
+        self.affiliation = list[10]
+        self.pick_rate = float(list[14])
+        self.win_rate = float(list[15])
+        self.tie_rate = float(list[16])
+        self.on_fire_rate = float(list[17])
+
 
     def info(self):
-        return self.name + " (" + self.role + "): " + self.description
+        return self.name + " (" + self.role + "): " + self.description + "\nQuote: " + self.quote
 
     def detail_info(self):
         return "Real Name: " + self.real_name + "\nAge: " + self.age + "\nNationality: " + self.nationality + "\nOccupation: " + self.occupation  + "\nBase: " + self.base  + "\nAffiliation: " + self.affiliation
 
     def stats(self):
         return "Health: " + self.health + "\nArmor: " + self.armor + "\nShield: " + self.shield
+
+    def compete_stats(self):
+        return "Pick rate: " + str(self.pick_rate) + "%\nWin rate: " + str(self.win_rate) + "%\nTie rate: " + str(self.tie_rate) +"%\nOn Fire rate: " + str(self.on_fire_rate) + "%"
     
     def show_pose(self):
         print("Showing the pose of " + self.name + " in web browser...")
@@ -265,7 +317,7 @@ class Ability:
     Instance Attributes
     -------------------    
     name: string
-        the name of an ablitiy (e.g. 'Ana')
+        the name of an ablitiy (e.g. 'Biotic Rifle')
 
     description: string
         the description of an ability (e.g. "Ana's versatile arsenal allows her to affect heroes...")
@@ -355,7 +407,7 @@ def get_official_hero_instance(hero_name, hero_url):
     hero_role = hero_role_tag.text.strip()
 
     ## extract the hero description
-    hero_description = soup.find('p', class_="hero-detail-description").text.strip()
+    hero_description = soup.find('p', class_="hero-detail-description").text.strip().replace("’", "'")
 
     ## extract the hero abilities
     hero_abilities_dict = {}
@@ -364,14 +416,14 @@ def get_official_hero_instance(hero_name, hero_url):
     for hero_abilities_div in hero_abilities_divs:
         hero_ability_descriptor = hero_abilities_div.find('div', class_="hero-ability-descriptor")
         hero_ability_name = hero_ability_descriptor.find('h4').text.strip().replace("’", "'")
-        hero_ability_description = hero_ability_descriptor.find('p').text.strip()
+        hero_ability_description = hero_ability_descriptor.find('p').text.strip().replace("’", "'")
         hero_ability_video_parent = hero_abilities_div.find('video', class_="hero-ability-video")
         hero_ability_video_url = hero_ability_video_parent.find('source', type="video/mp4")['src']
         hero_ability = Ability(hero_ability_name, hero_ability_description, hero_ability_video_url)
         hero_abilities_dict[hero_ability_name] = hero_ability
 
     ## extract the hero quote
-    hero_quote = soup.find('p', class_="h4 hero-bio-quote").text.strip()
+    hero_quote = soup.find('p', class_="h4 hero-bio-quote").text.strip().replace("’", "'")
 
     ## extract the hero pose image url
     hero_pose_parent = soup.find('div', class_="hero-pose")
@@ -480,6 +532,38 @@ def add_ability_stats_to_hero_instance(hero_inst, hero_url):
                 hero_inst.shield = hero_info_table_tr.find_all('td')[1].text.strip()
 
 
+def add_match_stats_to_hero_instance(hero_dict):
+    ''' Add infos from hero page URL into instances  
+    
+    Parameters
+    ----------
+    hero_dict: dict
+        the hero dictionary
+    '''
+    url_text = make_url_request_using_cache(OVERBUFF_WEBSITE_URL, CACHE_DICT)
+    soup = BeautifulSoup(url_text, 'html.parser')
+    
+    hero_match_stats_tbody = soup.find('table', class_="table-data table-sortable").find('tbody')
+    hero_match_stats_trs = hero_match_stats_tbody.find_all('tr')
+    for hero_match_stats_tr in hero_match_stats_trs:
+        hero_match_stats_spans = hero_match_stats_tr.find_all('span')
+        hero_match_stats_list = []
+        for hero_match_stats_span in hero_match_stats_spans:
+            if (hero_match_stats_span.find('a')):
+                # print(hero_match_stats_span.find('a').text.strip())
+                hero_match_stats_list.append(hero_match_stats_span.find('a').text.strip())
+            else:
+                # print(hero_match_stats_span.text.strip())
+                hero_match_stats_list.append(hero_match_stats_span.text.strip())
+        
+        hero_name = hero_match_stats_list[0].lower()
+        if (hero_dict[hero_name]):
+            hero_dict[hero_name].pick_rate = float(hero_match_stats_list[1].strip('%'))
+            hero_dict[hero_name].win_rate = float(hero_match_stats_list[2].strip('%'))
+            hero_dict[hero_name].tie_rate = float(hero_match_stats_list[3].strip('%'))
+            hero_dict[hero_name].on_fire_rate = float(hero_match_stats_list[4].strip('%'))
+
+
 def create_heroes_table(hero_dict):
     '''Build a Heroes Table from hero dict.
     
@@ -511,8 +595,12 @@ def create_heroes_table(hero_dict):
         health = hero_dict[hero_name].health
         armor = hero_dict[hero_name].armor
         shield = hero_dict[hero_name].shield
+        pick_rate = hero_dict[hero_name].pick_rate
+        win_rate = hero_dict[hero_name].win_rate
+        tie_rate = hero_dict[hero_name].tie_rate
+        on_fire_rate = hero_dict[hero_name].on_fire_rate
         hero_pose_url = hero_dict[hero_name].hero_pose_url
-        cur.execute(add_hero, [name, role, description, quote, real_name, age, nationality, occupation, base, affiliation, health, armor, shield, hero_pose_url])
+        cur.execute(add_hero, [name, role, description, quote, real_name, age, nationality, occupation, base, affiliation, health, armor, shield, pick_rate, win_rate, tie_rate, on_fire_rate, hero_pose_url])
         conn.commit()
 
     conn.close()
@@ -548,52 +636,297 @@ def create_abilities_table(hero_dict):
 
     conn.close()
 
+
+def search_hero_table_by_name(hero_name):
+    connection = sqlite3.connect("hero_wiki.sqlite")
+    cursor = connection.cursor()
+    query = ''
+    query += 'SELECT * From heroes'
+    query += ' WHERE Name = "' + hero_name + '"'
+    results = cursor.execute(query).fetchall()
+    connection.close()
+    return results
+
+def search_hero_table_by_role(role=None):
+    connection = sqlite3.connect("hero_wiki.sqlite")
+    cursor = connection.cursor()
+    query = ''
+    query += 'SELECT * From heroes'
+    if (role is not None):
+        query += ' WHERE Role = "' + role + '"'
+    results = cursor.execute(query).fetchall()
+    connection.close()
+    return results
+
+def search_ablility_table_by_ablitity_name(ablitity_name):
+    connection = sqlite3.connect("hero_wiki.sqlite")
+    cursor = connection.cursor()
+    query = ''
+    query += 'SELECT abilities.Name, abilities.Description, abilities.Stats, Video_URL, heroes.Name From abilities JOIN heroes ON abilities.HeroId = heroes.Id'
+    query += ' WHERE abilities.Name = "' + ablitity_name + '"'
+    results = cursor.execute(query).fetchall()
+    connection.close()
+    return results
+
+
+def search_ablility_table_by_hero_name(hero_name):
+    connection = sqlite3.connect("hero_wiki.sqlite")
+    cursor = connection.cursor()
+    query = ''
+    query += 'SELECT abilities.Name, abilities.Description, abilities.Stats, Video_URL From abilities JOIN heroes ON abilities.HeroId = heroes.Id'
+    query += ' WHERE heroes.Name = "' + hero_name + '"'
+    results = cursor.execute(query).fetchall()
+    connection.close()
+    return results
+
+def hero_comparison_barplot(hero_list, cmp_choice):
+    x_axis = []
+    y_axis = []
+    labels = []
+    values = []
+    if cmp_choice == 1:
+        for hero in hero_list:
+            x_axis.append(hero.name)
+            y_axis.append(hero.health.split(" ")[0])
+        bar_data = go.Bar(x=x_axis, y=y_axis)
+        basic_layout = go.Layout(title="Hero Comparison by Health")
+        fig = go.Figure(data=bar_data, layout=basic_layout)
+        div = fig.to_html(full_html=False)
+        return div
+    elif cmp_choice == 2:
+        for hero in hero_list:
+            x_axis.append(hero.name)
+            y_axis.append(hero.armor.split(" ")[0])
+        bar_data = go.Bar(x=x_axis, y=y_axis)
+        basic_layout = go.Layout(title="Hero Comparison by Armor")
+        fig = go.Figure(data=bar_data, layout=basic_layout)
+        div = fig.to_html(full_html=False)
+        return div        
+    elif cmp_choice == 3:
+        for hero in hero_list:
+            x_axis.append(hero.name)
+            y_axis.append(hero.shield.split(" ")[0])
+        bar_data = go.Bar(x=x_axis, y=y_axis)
+        basic_layout = go.Layout(title="Hero Comparison by Shield")
+        fig = go.Figure(data=bar_data, layout=basic_layout)
+        div = fig.to_html(full_html=False)
+        return div
+    elif cmp_choice == 4:
+        for hero in hero_list:
+            labels.append(hero.name)
+            values.append(hero.pick_rate)
+        pie_data = go.Pie(labels=labels, values=values)
+        basic_layout = go.Layout(title="Hero Comparison by Pick Rate")
+        fig = go.Figure(data=pie_data, layout=basic_layout)
+        div = fig.to_html(full_html=False)
+        return div
+    elif cmp_choice == 5:
+        for hero in hero_list:
+            x_axis.append(hero.name)
+            y_axis.append(hero.win_rate)
+        bar_data = go.Bar(x=x_axis, y=y_axis)
+        basic_layout = go.Layout(title="Hero Comparison by Win Rate")
+        fig = go.Figure(data=bar_data, layout=basic_layout)
+        div = fig.to_html(full_html=False)
+        return div
+    elif cmp_choice == 6:
+        for hero in hero_list:
+            x_axis.append(hero.name)
+            y_axis.append(hero.tie_rate)
+        bar_data = go.Bar(x=x_axis, y=y_axis)
+        basic_layout = go.Layout(title="Hero Comparison by Tie Rate")
+        fig = go.Figure(data=bar_data, layout=basic_layout)
+        div = fig.to_html(full_html=False)
+        return div
+    else:
+        for hero in hero_list:
+            x_axis.append(hero.name)
+            y_axis.append(hero.on_fire_rate)
+        bar_data = go.Bar(x=x_axis, y=y_axis)
+        basic_layout = go.Layout(title="Hero Comparison by On Fire Rate")
+        fig = go.Figure(data=bar_data, layout=basic_layout)
+        div = fig.to_html(full_html=False)
+        return div
+
+
+@app.route('/')
+def index():
+    return render_template('index.html') # just the static HTML
+    
+
+@app.route('/search_type', methods=['POST'])
+def handle_search_type():
+    search_option = request.form["search_option"]
+    if (search_option == "heroes"):
+        return render_template('search_hero.html')
+    elif (search_option == "abilities"):
+        return render_template('search_ability.html')
+    else:
+        return render_template('search_cmp.html')
+
+
+@app.route('/search_type/hero', methods=['POST'])
+def handle_search_hero():
+    search_hero_option = request.form["search_hero_option"]
+    if (search_hero_option == "name"):
+        hero_results = search_hero_table_by_name(request.form["hero_name"])
+        if (hero_results):
+            ability_results = search_ablility_table_by_hero_name(request.form["hero_name"])
+            for i in range(len(ability_results)):
+                ability = list(ability_results[i])
+                stats_list = ability[2].strip('\n').split("\n")
+                ability[2] = stats_list
+                ability_results[i] = ability
+            return render_template('hero.html', hero_inst=hero_results[0], ability_list=ability_results)
+        else:
+            return render_template('hero.html', hero_inst="", ability_list=[])
+    else:
+        return render_template('search_role.html')
+
+
+@app.route('/search_type/role', methods=['POST'])
+def handle_search_role():
+    search_role_option = request.form["search_role_option"]
+    results = search_hero_table_by_role(search_role_option)
+    if (results):
+        return render_template('role.html', role_list=results, role=search_role_option)
+    else:
+        return render_template('role.html')
+
+
+@app.route('/search_type/role/hero', methods=['POST'])
+def handle_hero_page():
+    hero_results = search_hero_table_by_name(request.form["hero_name"])
+    if (hero_results):
+        ability_results = search_ablility_table_by_hero_name(request.form["hero_name"])
+        for i in range(len(ability_results)):
+            ability = list(ability_results[i])
+            stats_list = ability[2].strip('\n').split("\n")
+            ability[2] = stats_list
+            ability_results[i] = ability
+        return render_template('hero.html', hero_inst=hero_results[0], ability_list=ability_results)
+    else:
+        return render_template('hero.html', hero_inst="", ability_list=[])
+
+
+@app.route('/search_type/ability', methods=['POST'])
+def handle_search_ability():
+    search_ability_option = request.form["search_ability_option"]
+    if (search_ability_option == "name"):
+        ability_results = search_ablility_table_by_ablitity_name(request.form["ability_name"])
+        if (ability_results):
+            ability_result = list(ability_results[0])
+            stats_list = ability_result[2].strip('\n').split("\n")
+            ability_result[2] = stats_list
+            return render_template('ability.html', ability_inst=ability_result)
+        else:
+            return render_template('ability.html', ability_inst="")
+    else:
+        ability_results = search_ablility_table_by_hero_name(request.form["hero_name"])
+        if (ability_results):
+            for i in range(len(ability_results)):
+                ability = list(ability_results[i])
+                stats_list = ability[2].strip('\n').split("\n")
+                ability[2] = stats_list
+                ability_results[i] = ability
+            return render_template('hero_ability.html', ability_list=ability_results, hero_name=request.form["hero_name"])
+        else:
+            return render_template('hero_ability.html', ability_list=[])
+
+
+@app.route('/search_type/ability/hero', methods=['POST'])
+def handle_search_hero_ability():
+    ability_results = search_ablility_table_by_ablitity_name(request.form["ability_name"])
+    if (ability_results):
+        ability_result = list(ability_results[0])
+        stats_list = ability_result[2].strip('\n').split("\n")
+        ability_result[2] = stats_list
+        return render_template('ability.html', ability_inst=ability_result)
+    else:
+        return render_template('ability.html', ability_inst="")
+
+
+@app.route('/search_type/cmp', methods=['POST'])
+def handle_search_cmp():
+    search_role_option = request.form["search_role_option"]
+    results = search_hero_table_by_role(search_role_option)
+    if (search_role_option == "Support"):
+        results = search_hero_table_by_role("Support")
+    elif (search_role_option == "Damage"):
+        results = search_hero_table_by_role("Damage")
+    elif (search_role_option == "Tank"):
+        results = search_hero_table_by_role("Tank")
+    elif (search_role_option == "All"):
+        results = search_hero_table_by_role()
+    if (results):
+        index = 1
+        hero_list = []
+        for result in results:
+            hero = Hero()
+            hero.set_val_by_list(result)
+            hero_list.append(hero)
+            index += 1
+        div = hero_comparison_barplot(hero_list, int(request.form["search_cmp_option"]))
+        return render_template('cmp.html', search_role_option=search_role_option, plot_div=div)
+    else:
+        return render_template('cmp.html')
+
+
 if __name__ == "__main__":
     ## Load the cache, save in global variable
     CACHE_DICT = load_cache()
 
-    ## build url dict from official website
-    hero_official_url_dict = build_hero_official_url_dict()
+    if not wiki_file.exists():
+        ## build url dict from official website
+        hero_official_url_dict = build_hero_official_url_dict()
 
-    ## build hero dict from official url dict
-    hero_dict = {}
-    for hero_name in hero_official_url_dict.keys():
-        hero_url = hero_official_url_dict[hero_name]
-        hero_inst = get_official_hero_instance(hero_name, hero_url)
-        hero_dict[hero_name.lower()] = hero_inst
+        ## build hero dict from official url dict
+        hero_dict = {}
+        for hero_name in hero_official_url_dict.keys():
+            hero_url = hero_official_url_dict[hero_name]
+            hero_inst = get_official_hero_instance(hero_name, hero_url)
+            hero_dict[hero_name.lower()] = hero_inst
+            
+        ## build url dict from gamepedia website
+        hero_gamepedia_url_dict = build_hero_gamepedia_url_dict()
+
+        ## add gamepedia infos into class Hero in hero dict
+        for hero_name in hero_gamepedia_url_dict.keys():
+            try:
+                add_ability_stats_to_hero_instance(hero_dict[hero_name.lower()], hero_gamepedia_url_dict[hero_name])
+            except:
+                pass
         
-    ## build url dict from gamepedia website
-    hero_gamepedia_url_dict = build_hero_gamepedia_url_dict()
+        # add_ability_stats_to_hero_instance(hero_dict['roadhog'], hero_gamepedia_url_dict['Roadhog'])
+        # add_ability_stats_to_hero_instance(hero_dict['widowmaker'], hero_gamepedia_url_dict['Widowmaker'])
 
-    ## add gamepedia infos into class Hero in hero dict
-    for hero_name in hero_gamepedia_url_dict.keys():
-        try:
-            add_ability_stats_to_hero_instance(hero_dict[hero_name.lower()], hero_gamepedia_url_dict[hero_name])
-        except:
-            pass
-    
-    # add_ability_stats_to_hero_instance(hero_dict['roadhog'], hero_gamepedia_url_dict['Roadhog'])
-    # add_ability_stats_to_hero_instance(hero_dict['widowmaker'], hero_gamepedia_url_dict['Widowmaker'])
+        ## add overbuff infos into class Hero in hero dict
+        add_match_stats_to_hero_instance(hero_dict)
 
-    ## build tables in database
-    create_heroes_table(hero_dict)
-    create_abilities_table(hero_dict)
+        ## build tables in database
+        create_heroes_table(hero_dict)
+        create_abilities_table(hero_dict)
 
-    ## display infos in hero dict
-    # for hero_name in hero_official_url_dict.keys():
-    #     print(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
-    #     hero_inst = hero_dict[hero_name.lower()]
-    #     print(hero_inst.info())
-    #     print(hero_inst.detail_info())
-    #     # print("")
-    #     # print(hero_inst.quote)
-    #     # print("")
-    #     print(hero_inst.stats())
-    #     print("*******************************************")
-    #     for ability in hero_inst.abilities.keys():
-    #         print(hero_inst.abilities[ability].info())
-    #         print(hero_inst.abilities[ability].show_stats())
-    #         print("*******************************************")
-    #     print("<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<")
-        
+        ## display infos in hero dict
+        # for hero_name in hero_official_url_dict.keys():
+        #     print(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
+        #     hero_inst = hero_dict[hero_name.lower()]
+        #     print(hero_inst.info())
+        #     print(hero_inst.detail_info())
+        #     print("")
+        #     print(hero_inst.quote)
+        #     print("")
+        #     print(hero_inst.stats())
+        #     print(hero_inst.compete_stats())
+        #     print("*******************************************")
+        #     for ability in hero_inst.abilities.keys():
+        #         print(hero_inst.abilities[ability].info())
+        #         print(hero_inst.abilities[ability].show_stats())
+        #         print("*******************************************")
+        #     print("<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<")
+
+    ## interface
+    print('starting Flask app', app.name)  
+    app.run(debug=True)
+
 

@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf8"/>
+    <title>Wiki Search Role</title>
+</head>
+<body>
+    <h1>
+        Role Search
+    </h1>
+    <form action="/search_type/role" method="POST">
+        <p>
+            Which role do you want to search for?<br>
+            <input type="radio" name="search_role_option" value="Support">1. Support<br/>
+            <input type="radio" name="search_role_option" value="Damage">2. Damage<br/>
+            <input type="radio" name="search_role_option" value="Tank">3. Tank<br/>
+        </p>
+          
+        <input type="submit" value="Search"/>
+    </form>
+
+    <p><a href='/'>Back to menu</a></p>
+
+</body>
+</html>

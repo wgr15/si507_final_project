@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf8"/>
+    {% if ability_inst == "" %}
+    <title>No this Ability</title>
+    {% else %}
+    <title>Ability {{ability_inst[0]}}</title>
+    {% endif %}
+</head>
+<body>
+    {% if ability_inst == "" %}
+    <h1>
+        Cannot find this ability!
+    </h1>
+    {% else %}
+    <h1>{{ability_inst[0]}}</h1>
+    <h2>Hero: {{ability_inst[4]}}</h2>
+    <h3>Description:</h3> {{ability_inst[1]}}
+    <p>
+        <h3>Stats:</h3>
+        <ul>
+            {% for stats in ability_inst[2] %}
+            <li>
+                {{stats}}
+            </li>
+            {% endfor %}
+        </ul> 
+    </p>
+    <p>
+        <h3>Video:</h3>
+        <video width="800" height="600" controls>
+            <source src="{{ability_inst[3]}}" type="video/mp4">
+        </video>
+    </p>
+    {% endif %}
+
+    <p><a href='/'>Back to menu</a></p>
+
+</body>
+</html>

@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf8"/>
+    <title>Wiki Hero Comparison</title>
+</head>
+<body>
+    <h1>
+        Hero Comparison
+    </h1>
+    <form action="/search_type/cmp" method="POST">
+        <p>
+            Which role of heroes do you want to do the comparison?<br>
+            <input type="radio" name="search_role_option" value="Support">1. Support<br/>
+            <input type="radio" name="search_role_option" value="Damage">2. Damage<br/>
+            <input type="radio" name="search_role_option" value="Tank">3. Tank<br/>
+            <input type="radio" name="search_role_option" value="All">4. All Heroes<br/>
+        </p>
+
+        <p>
+            Which stats do you want to compare?<br>
+            <input type="radio" name="search_cmp_option" value="1">1. Health<br/>
+            <input type="radio" name="search_cmp_option" value="2">2. Armor<br/>
+            <input type="radio" name="search_cmp_option" value="3">3. Shield<br/>
+            <input type="radio" name="search_cmp_option" value="4">4. Pick rate<br/>
+            <input type="radio" name="search_cmp_option" value="5">5. Win rate<br/>
+            <input type="radio" name="search_cmp_option" value="6">6. Tie rate<br/>
+            <input type="radio" name="search_cmp_option" value="7">7. On fire rate<br/>
+        </p>
+          
+        <input type="submit" value="Search"/>
+    </form>
+
+    <p><a href='/'>Back to menu</a></p>
+
+</body>
+</html>

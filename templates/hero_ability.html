@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf8"/>
+    <title>Hero {{hero_name}}'s Ability</title>
+</head>
+<body>
+    <h1>
+        Ability Search for Hero {{hero_name}}
+    </h1>
+    {% if ability_list == [] %}
+    <h2>
+        Cannot find this hero!
+    </h2>
+    {% else %}
+    <form action="/search_type/ability/hero" method="POST">
+        <p>
+            Which ability do you want to know more about?<br>
+            {% for ability in ability_list %}
+            <input type="radio" name="ability_name" value="{{ability[0]}}">{{ability[0]}}<br/>
+            {% endfor %}
+        </p>
+          
+        <input type="submit" value="Search"/>
+    </form>
+    {% endif %}
+
+    <p><a href='/'>Back to menu</a></p>
+    
+</body>
+</html>
