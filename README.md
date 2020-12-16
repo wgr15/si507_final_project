@@ -5,3 +5,6 @@ For this project, you only need to run the python program and interact with the 
 
 Required Python packages:
 BeautifulSoup, plotly, requests, json, time, re, webbrowser, sqlite3, pathlib, flask
+
+Demo Video:
+https://drive.google.com/file/d/1h9TdejezKcFG-FQGANUqpYFhihJpXly9/view?usp=sharing
